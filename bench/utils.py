@@ -1,4 +1,4 @@
-import os, sys, shutil, subprocess, logging, itertools, requests, json, platform, select, pwd, grp, multiprocessing, hashlib
+import os, sys, shutil, subprocess, logging, itertools, requests, json, platform, select, pwd, grp, multiprocessing, hashlib, glob
 from distutils.spawn import find_executable
 import bench
 import semantic_version
@@ -37,8 +37,8 @@ def init(path, apps_path=None, no_procfile=False, no_backups=False,
 		no_auto_update=False, frappe_path=None, frappe_branch=None, wheel_cache_dir=None,
 		verbose=False, clone_from=None, skip_redis_config_generation=False,
 		clone_without_update=False,
-		ignore_exist = False,
-		python		 = 'python'): # Let's change when we're ready. - <achilles@frappe.io>
+		ignore_exist = False, skip_assets=False,
+		python		 = 'python3'): # Let's change when we're ready. - <achilles@frappe.io>
 	from .app import get_app, install_apps_from_path
 	from .config.common_site_config import make_config
 	from .config import redis
@@ -80,10 +80,12 @@ def init(path, apps_path=None, no_procfile=False, no_backups=False,
 
 	bench.set_frappe_version(bench_path=path)
 	if bench.FRAPPE_VERSION > 5:
-		update_node_packages(bench_path=path)
+		if not skip_assets:
+			update_node_packages(bench_path=path)
 
 	set_all_patches_executed(bench_path=path)
-	build_assets(bench_path=path)
+	if not skip_assets:
+		build_assets(bench_path=path)
 
 	if not skip_redis_config_generation:
 		redis.generate_config(path)
@@ -169,7 +171,7 @@ def which(executable, raise_err = False):
 
 	return exec_
 
-def setup_env(bench_path='.', python = 'python'):
+def setup_env(bench_path='.', python = 'python3'):
 	python = which(python, raise_err = True)
 	pip    = os.path.join('env', 'bin', 'pip')
 
@@ -194,13 +196,16 @@ def patch_sites(bench_path='.'):
 	except subprocess.CalledProcessError:
 		raise PatchError
 
-def build_assets(bench_path='.'):
+def build_assets(bench_path='.', app=None):
 	bench.set_frappe_version(bench_path=bench_path)
 
 	if bench.FRAPPE_VERSION == 4:
 		exec_cmd("{frappe} --build".format(frappe=get_frappe(bench_path=bench_path)), cwd=os.path.join(bench_path, 'sites'))
 	else:
-		run_frappe_cmd('build', bench_path=bench_path)
+		command = 'bench build'
+		if app:
+			command += ' --app {}'.format(app)
+		exec_cmd(command, cwd=bench_path)
 
 def get_sites(bench_path='.'):
 	sites_dir = os.path.join(bench_path, "sites")
@@ -556,16 +561,6 @@ def drop_privileges(uid_name='nobody', gid_name='nogroup'):
 
 def fix_prod_setup_perms(bench_path='.', frappe_user=None):
 	from .config.common_site_config import get_config
-	files = [
-		"logs/web.error.log",
-		"logs/web.log",
-		"logs/workerbeat.error.log",
-		"logs/workerbeat.log",
-		"logs/worker.error.log",
-		"logs/worker.log",
-		"config/nginx.conf",
-		"config/supervisor.conf",
-	]
 
 	if not frappe_user:
 		frappe_user = get_config(bench_path).get('frappe_user')
@@ -574,8 +569,9 @@ def fix_prod_setup_perms(bench_path='.', frappe_user=None):
 		print("frappe user not set")
 		sys.exit(1)
 
-	for path in files:
-		if os.path.exists(path):
+	globs = ["logs/*", "config/*"]
+	for glob_name in globs:
+		for path in glob.glob(glob_name):
 			uid = pwd.getpwnam(frappe_user).pw_uid
 			gid = grp.getgrnam(frappe_user).gr_gid
 			os.chown(path, uid, gid)
@@ -818,7 +814,7 @@ def run_playbook(playbook_name, extra_vars=None, tag=None):
 	if not find_executable('ansible'):
 		print("Ansible is needed to run this command, please install it using 'pip install ansible'")
 		sys.exit(1)
-	args = ['ansible-playbook', '-c', 'local', playbook_name]
+	args = ['ansible-playbook', '-c', 'local', playbook_name, '-vvvv']
 
 	if extra_vars:
 		args.extend(['-e', json.dumps(extra_vars)])

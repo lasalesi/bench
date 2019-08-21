@@ -1,6 +1,6 @@
 
 <div align="center">
-    <img src="https://github.com/frappe/design/blob/master/logos/bench-logo.svg" height="128">
+    <img src="https://github.com/frappe/design/raw/master/logos/png/bench-logo.png" height="128">
     <h2>Frappe Bench</h2>
 </div>
 
@@ -31,11 +31,11 @@ To install the Frappe/ERPNext server software, you will need an operating system
 
 ### Manual Install
 
-To manually install frappe/erpnext, you can follow this [this wiki](https://github.com/frappe/frappe/wiki/The-Hitchhiker's-Guide-to-Installing-Frapp%C3%A9-on-Linux-OS) for Linux and [this wiki](https://github.com/frappe/frappe/wiki/The-Hitchhiker's-Guide-to-Installing-Frapp%C3%A9-on-Mac-OS-X) for MacOS. It gives an excellent explanation about the stack. You can also follow the steps mentioned below:
+To manually install frappe/erpnext, you can follow this [this wiki](https://github.com/frappe/frappe/wiki/The-Hitchhiker%27s-Guide-to-Installing-Frappe-on-Linux) for Linux and [this wiki](https://github.com/frappe/frappe/wiki/The-Hitchhiker's-Guide-to-Installing-Frappe-on-Mac-OS-X) for MacOS. It gives an excellent explanation about the stack. You can also follow the steps mentioned below:
 
 #### 1. Install Pre-requisites
 
-- Python 2.7 [Python3.5+ also supported, but not recommended for production]
+- Python 2.7 or Python 3.5+
 - MariaDB 10+
 - Nginx (for production)
 - Nodejs
@@ -81,7 +81,7 @@ Note: Please do not remove the bench directory the above commands will create
 	To install an app on your new site, use the bench `install-app` command.
 
 		bench --site site1.local install-app erpnext
-		
+
 * Start bench
 
 	To start using the bench, use the `bench start` command
@@ -118,9 +118,17 @@ For Linux:
 
 #### 2. Run the install script
 
-If you are on a fresh server and logged in as root, use --user flag to create a user and install using that user
+If you are on a fresh server and logged in as root, at first create a dedicated user for frappe
+& equip this user with sudo privileges
 
-	python install.py --develop --user frappe
+```
+  adduser [frappe-user]
+  usermod -aG sudo frappe
+```
+
+_(it is very common to name this user `frappe`, but this comes with the disadvantage of being
+ranked very high in hackers circles for attempts to entering servers. So production sites it
+is highly recommended to use a custom username harder to guess for)_
 
 For developer setup:
 
@@ -128,14 +136,26 @@ For developer setup:
 
 For production:
 
-	sudo python install.py --production --user frappe
+	sudo python install.py --production --user [frappe-user]
+
+use --user flag to create a user and install using that user
+
+	python install.py --develop --user [frappe-user]
+
+use --version flag to install specific version
+
+	python install.py --develop --version 11 --user [frappe-user]
+
+use --python flag to specify virtual environments python version, by default script setup python 3
+
+	python install.py --develop --version 11 --python python2.7 --user [frappe-user]
 
 #### What will this script do?
 
 - Install all the pre-requisites
 - Install the command line `bench`
 - Create a new bench (a folder that will contain your entire frappe/erpnext setup)
-- Create a new ERPNext site on the bench 
+- Create a new ERPNext site on the bench
 
 #### How do I start ERPNext
 
